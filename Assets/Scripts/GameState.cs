@@ -158,6 +158,8 @@ public class GameState : MonoBehaviour
                 {
                     stepCounters[playerIndex][i] = 0;
                     pawn.transform.position = GetCellPosition(startCell);
+                    Pawn pawnScript = pawn.GetComponent<Pawn>();
+                    pawnScript.Anim();
                 }
                 Debug.Log($"ШІ {playerIndex} вивів фішку {i} зі старту.");
                 return true;
@@ -197,17 +199,21 @@ public class GameState : MonoBehaviour
         {
             playerPositions[playerIndex][bestPawnIndex] = bestMove;
             stepCounters[playerIndex][bestPawnIndex] += diceValue;
-            Debug.Log($"Кількість поточних кроків гравця {playerIndex}: {stepCounters[playerIndex][bestPawnIndex]}");
             GameObject pawn = FindPawnObject(playerIndex, bestPawnIndex);
+
+            if (pawn != null)
+            {
+                pawn.transform.position = GetCellPosition(bestMove);
+                Pawn pawnScript = pawn.GetComponent<Pawn>();
+                pawnScript.Anim();
+            }
             if (stepCounters[playerIndex][bestPawnIndex] >= 40)
             {
                 Debug.Log($"Фішка {bestPawnIndex} гравця {playerIndex} завершила коло та перходить у HomeRow");
                 MoveToHomeRow(playerIndex, bestPawnIndex);
+                Pawn pawnScript = pawn.GetComponent<Pawn>();
+                pawnScript.Anim();
                 return;
-            }
-            if (pawn != null)
-            {
-                pawn.transform.position = GetCellPosition(bestMove);
             }
             Debug.Log($"ШІ {playerIndex} перемістив фішку {bestPawnIndex} на позицію {bestMove}.");
         }

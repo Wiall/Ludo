@@ -49,9 +49,7 @@ public class Pawn : MonoBehaviour
             int startCell = gameState.GetStartingCell(playerIndex);
 
             // Розрахунок нової позиції з урахуванням "завершення кола"
-            
             currentCellIndex = gameState.CalculateOverflowPosition(currentCellIndex);
-
             transform.position = gameState.GetCellPosition(currentCellIndex);
             gameState.UpdatePlayerPosition(playerIndex, pawnIndex, currentCellIndex);
             if (gameState.stepCounters[playerIndex][pawnIndex] >= 40)
@@ -82,6 +80,10 @@ public class Pawn : MonoBehaviour
         }
     }
 
+    public void Anim()
+    {
+        OnSelect();
+    }
     public void OnSelect()
     {
         // Анімація збільшення
