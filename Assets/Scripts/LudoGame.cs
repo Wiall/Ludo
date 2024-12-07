@@ -15,15 +15,15 @@ public class LudoGame : MonoBehaviour
 
     void InitializeGame()
     {
-        boardState = new int[4, 40]; // Приклад ігрового поля: 4 кольори, 40 клітинок
-        currentPlayer = 0; // Гравець починає
+        boardState = new int[4, 40];
+        currentPlayer = 0;
     }
 
     public int MinimaxDecision(int depth, bool isMaximizing, int playerIndex)
     {
         if (depth == 0 || IsTerminalState())
         {
-            return EvaluateState(playerIndex); // Оцінка поточного стану для ШІ
+            return EvaluateState(playerIndex);
         }
 
         if (isMaximizing)
@@ -31,9 +31,9 @@ public class LudoGame : MonoBehaviour
             int maxEval = int.MinValue;
             foreach (var move in GetAllPossibleMoves(playerIndex))
             {
-                SimulateMove(move, playerIndex); // Виконуємо симуляцію ходу
+                SimulateMove(move, playerIndex);
                 int eval = MinimaxDecision(depth - 1, false, playerIndex);
-                UndoMove(move, playerIndex); // Скасовуємо симуляцію
+                UndoMove(move, playerIndex);
                 maxEval = Mathf.Max(maxEval, eval);
             }
             return maxEval;
@@ -65,7 +65,6 @@ public class LudoGame : MonoBehaviour
 
     bool IsTerminalState()
     {
-        // Перевірка на завершення гри
         return false;
     }
 
@@ -73,16 +72,13 @@ public class LudoGame : MonoBehaviour
     {
         int score = 0;
 
-        // Базова оцінка: чим далі фішки гравця, тим краще
         foreach (var pos in gameState.playerPositions[playerIndex])
         {
             if (pos != -1) score += pos;
 
-            // Додатковий бонус за вхід у зону фінішу
             if (pos >= gameState.GetTotalCells() - 6) score += 10;
         }
 
-        // Штраф за близькість ворожих фішок
         foreach (var opponentIndex in gameState.playerPositions.Keys)
         {
             if (opponentIndex != playerIndex)
@@ -91,7 +87,6 @@ public class LudoGame : MonoBehaviour
                 {
                     if (pos != -1) score -= pos;
 
-                    // Штраф за ризик захоплення
                     foreach (var playerPos in gameState.playerPositions[playerIndex])
                     {
                         if (Mathf.Abs(playerPos - pos) <= 6) score -= 5;
@@ -108,7 +103,7 @@ public class LudoGame : MonoBehaviour
         List<int> moves = new List<int>();
         foreach (var pawnIndex in gameState.playerPositions[playerIndex])
         {
-            if (pawnIndex != -1) // Якщо фішка на полі
+            if (pawnIndex != -1)
             {
                 int newPosition = pawnIndex + gameState.diceValue;
                 if (newPosition < gameState.GetTotalCells())

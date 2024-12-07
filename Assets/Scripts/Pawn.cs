@@ -5,7 +5,6 @@ public class Pawn : MonoBehaviour
 {
     public int playerIndex;
     public int pawnIndex;
-    public Transform startSlot;
     public Vector3 startPosition;
     public int currentCellIndex;
     public GameState gameState;
@@ -20,7 +19,6 @@ public class Pawn : MonoBehaviour
         originalScale = transform.localScale;
     }
 
-    // Метод для переміщення фішки
     public void MovePawn(int diceValue)
     {
         if (diceValue == -1)
@@ -33,22 +31,18 @@ public class Pawn : MonoBehaviour
             return;
         }
 
-        if (currentCellIndex == -1) // Якщо фішка ще не на полі
+        if (currentCellIndex == -1)
         {
-            if (diceValue == 6) // Гравець має отримати 6, щоб вивести фішку
+            if (diceValue == 6)
             {
-                currentCellIndex = gameState.GetStartingCell(playerIndex); // Вихід на стартову клітинку
-                transform.position = gameState.GetCellPosition(currentCellIndex); // Змінюємо позицію
+                currentCellIndex = gameState.GetStartingCell(playerIndex);
+                transform.position = gameState.GetCellPosition(currentCellIndex);
                 gameState.UpdatePlayerPosition(playerIndex, pawnIndex, currentCellIndex);
                 gameState.stepCounters[playerIndex][pawnIndex] = 0;
             }
         }
         else
         {
-            int totalCells = gameState.GetTotalCells();
-            int startCell = gameState.GetStartingCell(playerIndex);
-
-            // Розрахунок нової позиції з урахуванням "завершення кола"
             currentCellIndex = gameState.CalculateOverflowPosition(currentCellIndex);
             transform.position = gameState.GetCellPosition(currentCellIndex);
             gameState.UpdatePlayerPosition(playerIndex, pawnIndex, currentCellIndex);
@@ -61,20 +55,18 @@ public class Pawn : MonoBehaviour
         }
         diceValue = -1;
     }
-
-
-    // Метод для обробки захоплення (якщо на новій клітинці є ворожа фішка)
+    
     private void HandleCapture(int cellIndex)
     {
-        for (int otherPlayer = 0; otherPlayer < 4; otherPlayer++) // Для кожного гравця
+        for (int otherPlayer = 0; otherPlayer < 4; otherPlayer++)
         {
-            if (otherPlayer == playerIndex) continue; // Пропускаємо власні фішки
+            if (otherPlayer == playerIndex) continue;
 
             for (int otherPawnIndex = 0; otherPawnIndex < gameState.playerPositions[otherPlayer].Count; otherPawnIndex++)
             {
-                if (gameState.playerPositions[otherPlayer][otherPawnIndex] == cellIndex) // Якщо фішка суперника на цій клітинці
+                if (gameState.playerPositions[otherPlayer][otherPawnIndex] == cellIndex)
                 {
-                    gameState.ResetPawn(otherPlayer, otherPawnIndex); // Повертаємо захоплену фішку на старт
+                    gameState.ResetPawn(otherPlayer, otherPawnIndex);
                 }
             }
         }
@@ -86,17 +78,15 @@ public class Pawn : MonoBehaviour
     }
     public void OnSelect()
     {
-        // Анімація збільшення
         LeanTween.scale(gameObject, originalScale * 1.2f, 0.2f).setEaseOutBack()
             .setOnComplete(() =>
             {
-                // Повернення до нормального розміру
                 LeanTween.scale(gameObject, originalScale, 0.2f).setEaseInBack();
             });
     }
     void OnMouseDown()
     {
-        if (gameState.currentPlayer == playerIndex) // Перевірка, чи це хід гравця
+        if (gameState.currentPlayer == playerIndex)
         {
             if (!gameState.diceRolled)
             {
@@ -104,11 +94,10 @@ public class Pawn : MonoBehaviour
                 return;
             }
             OnSelect();
-            MovePawn(gameState.diceValue); // Рух фішки
-            HandleCapture(currentCellIndex); // Перевірка на захоплення
+            MovePawn(gameState.diceValue);
+            HandleCapture(currentCellIndex);
             gameState.dice.ResetDice();
-            gameState.NextPlayer(); // Передача ходу
+            gameState.NextPlayer();
         }
     }
-
 }

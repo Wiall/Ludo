@@ -16,8 +16,8 @@ public class Dice : MonoBehaviour
             Debug.Log("Кубик уже кинуто! Виконайте хід або завершіть його.");
             return;
         }
-        diceValue = Random.Range(1, 7); // Генеруємо число від 1 до 6
-        diceText.text = "Dice: " + diceValue; // Відображаємо результат
+        diceValue = Random.Range(1, 7);
+        diceText.text = "Dice: " + diceValue;
         if (gameState != null)
         {
             gameState.diceValue = diceValue;

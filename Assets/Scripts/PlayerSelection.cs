@@ -10,7 +10,12 @@ public class PlayerSelection : MonoBehaviour
         gameObject.SetActive(true);
         gameState.SetPlayerIndex(colorIndex);
         Debug.Log($"Гравець обрав колір: {colorIndex}");
-        gameObject.SetActive(false); // Ховаємо UI вибору кольору
+        gameObject.SetActive(false);
         shadow.SetActive(false);
+    }
+    public void Quit()
+    {
+        Debug.Log("Гра завершується...");
+        Application.Quit();
     }
 }

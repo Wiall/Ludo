@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -126,19 +127,26 @@ public class GameState : MonoBehaviour
     //------------------ Логіка ходу ШІ ----------------------
     public void MakeAiMove()
     {
+        StartCoroutine(PerformAiMoves());
+    }
+
+    private IEnumerator PerformAiMoves()
+    {
+        yield return new WaitForSeconds(0.5f);
         dice.RollDice();
 
         if (diceValue == 6)
         {
             bool moved = TryMoveOutOfStart(currentPlayer);
+            yield return new WaitForSeconds(0.5f); // Затримка перед наступною дією
             if (!moved)
             {
-                MoveBestPawn(currentPlayer);
+                yield return MoveBestPawnWithDelay(currentPlayer);
             }
         }
         else
         {
-            MoveBestPawn(currentPlayer);
+            yield return MoveBestPawnWithDelay(currentPlayer);
         }
 
         dice.ResetDice();
@@ -168,7 +176,7 @@ public class GameState : MonoBehaviour
         return false;
     }
 
-    private void MoveBestPawn(int playerIndex)
+    private IEnumerator MoveBestPawnWithDelay(int playerIndex)
     {
         int bestMove = -1;
         int bestScore = int.MinValue;
@@ -180,9 +188,8 @@ public class GameState : MonoBehaviour
             if (currentPosition == -1) continue; // Пропускаємо фішки, які ще на старті
 
             currentPosition = CalculateOverflowPosition(currentPosition);
-            
-            HandleCapture(playerIndex,currentPosition);
-            
+            HandleCapture(playerIndex, currentPosition);
+
             if (currentPosition >= GetTotalCells()) continue; // Пропускаємо неможливі ходи
 
             // Розрахунок оцінки для цього ходу
@@ -201,25 +208,25 @@ public class GameState : MonoBehaviour
             stepCounters[playerIndex][bestPawnIndex] += diceValue;
             GameObject pawn = FindPawnObject(playerIndex, bestPawnIndex);
 
+            if (stepCounters[playerIndex][bestPawnIndex] >= 40)
+            {
+                Debug.Log($"Фішка {bestPawnIndex} гравця {playerIndex} завершила коло та перходить у HomeRow");
+                MoveToHomeRow(playerIndex, bestPawnIndex);
+                yield break; // Завершуємо виконання
+            }
+
             if (pawn != null)
             {
                 pawn.transform.position = GetCellPosition(bestMove);
                 Pawn pawnScript = pawn.GetComponent<Pawn>();
                 pawnScript.Anim();
             }
-            if (stepCounters[playerIndex][bestPawnIndex] >= 40)
-            {
-                Debug.Log($"Фішка {bestPawnIndex} гравця {playerIndex} завершила коло та перходить у HomeRow");
-                MoveToHomeRow(playerIndex, bestPawnIndex);
-                Pawn pawnScript = pawn.GetComponent<Pawn>();
-                pawnScript.Anim();
-                return;
-            }
-            Debug.Log($"ШІ {playerIndex} перемістив фішку {bestPawnIndex} на позицію {bestMove}.");
-        }
-        
-    }
 
+            Debug.Log($"ШІ {playerIndex} перемістив фішку {bestPawnIndex} на позицію {bestMove}.");
+
+            yield return new WaitForSeconds(0.5f); // Затримка між рухами
+        }
+    }
     public int CalculateOverflowPosition(int currentPosition)
     {
         int newPosition;
@@ -238,15 +245,15 @@ public class GameState : MonoBehaviour
     }
     private void HandleCapture(int playerIndex, int cellIndex)
     {
-        for (int otherPlayer = 0; otherPlayer < 4; otherPlayer++) // Для кожного гравця
+        for (int otherPlayer = 0; otherPlayer < 4; otherPlayer++)
         {
-            if (otherPlayer == playerIndex) continue; // Пропускаємо власні фішки
+            if (otherPlayer == playerIndex) continue;
 
             for (int otherPawnIndex = 0; otherPawnIndex < playerPositions[otherPlayer].Count; otherPawnIndex++)
             {
-                if (playerPositions[otherPlayer][otherPawnIndex] == cellIndex) // Якщо фішка суперника на цій клітинці
+                if (playerPositions[otherPlayer][otherPawnIndex] == cellIndex)
                 {
-                    ResetPawn(otherPlayer, otherPawnIndex); // Повертаємо захоплену фішку на старт
+                    ResetPawn(otherPlayer, otherPawnIndex);
                     Debug.Log($"Фішку гравця {otherPlayer} захоплено гравцем {playerIndex} на клітинці {cellIndex+10}!");
                 }
             }
@@ -256,11 +263,9 @@ public class GameState : MonoBehaviour
     private int EvaluateMove(int playerIndex, int pawnIndex, int newPosition)
     {
         int score = 0;
-
-        // Бонус за досягнення фінішу
+        
         if (newPosition >= GetTotalCells() - 6) score += 10;
 
-        // Штраф за близькість до ворожих фішок
         foreach (var opponentIndex in playerPositions.Keys)
         {
             if (opponentIndex == playerIndex) continue;
@@ -275,8 +280,7 @@ public class GameState : MonoBehaviour
 
     public void MoveToHomeRow(int playerIndex, int pawnIndex)
     {
-        // Визначаємо назву об'єкта у домашньому ряді, пов'язаного з конкретною фішкою
-        string homeObjectName = $"HomeRow_{GetPlayerColor(playerIndex)}/Coin_{pawnIndex + 1}"; // Фіксована позиція для фішки
+        string homeObjectName = $"HomeRow_{GetPlayerColor(playerIndex)}/Coin_{pawnIndex + 1}";
         GameObject homePositionObject = GameObject.Find(homeObjectName);
     
         if (homePositionObject != null)
@@ -287,7 +291,8 @@ public class GameState : MonoBehaviour
                 pawn.transform.position = homePositionObject.transform.position;
                 playerPositions[playerIndex][pawnIndex] = -10;
                 Debug.Log($"Фішка {pawnIndex} гравця {playerIndex} переміщена у домашній ряд на позицію {pawnIndex + 1}.");
-                
+                Pawn pawnScript = pawn.GetComponent<Pawn>();
+                pawnScript.Anim();
                 CheckForWin(playerIndex);
             }
             else
@@ -308,16 +313,16 @@ public class GameState : MonoBehaviour
 
         foreach (int position in playerPositions[playerIndex])
         {
-            if (position < -1) // -10 означає, що фішка у HomeRow
+            if (position < -1)
             {
                 homeCount++;
             }
         }
 
-        if (homeCount == 4) // Якщо всі 4 фішки в HomeRow
+        if (homeCount == 4)
         {
             Debug.Log($"Гравець {playerIndex} виграв гру!");
-            EndGame(playerIndex); // Завершуємо гру
+            EndGame(playerIndex);
         }
     }
 
@@ -331,7 +336,6 @@ public class GameState : MonoBehaviour
         {
             Debug.LogWarning("Shadow component is missing");
         }
-        // Активуємо панель завершення гри
         if (endGamePanel != null && endText != null)
         {
             endGamePanel.SetActive(true);
@@ -339,12 +343,7 @@ public class GameState : MonoBehaviour
             string color = GetPlayerColor(winnerIndex);
             endText.text = $"{color} player won!";
         }
-        else
-        {
-            Debug.LogError("EndGamePanel або endText не призначені в GameState!");
-        }
-
-        Time.timeScale = 0; // Ставить гру на паузу
+        Time.timeScale = 0;
     }
 
     public void TestWin()
