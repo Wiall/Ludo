@@ -197,6 +197,7 @@ public class GameState : MonoBehaviour
         {
             playerPositions[playerIndex][bestPawnIndex] = bestMove;
             stepCounters[playerIndex][bestPawnIndex] += diceValue;
+            Debug.Log($"Кількість поточних кроків гравця {playerIndex}: {stepCounters[playerIndex][bestPawnIndex]}");
             GameObject pawn = FindPawnObject(playerIndex, bestPawnIndex);
             if (stepCounters[playerIndex][bestPawnIndex] >= 40)
             {
