@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using TMPro;
 using Random = UnityEngine.Random;
@@ -11,7 +10,7 @@ public class Dice : MonoBehaviour
 
     public void RollDice()
     {
-        if (gameState.diceRolled == true)
+        if (gameState.diceRolled)
         {
             Debug.Log("Кубик уже кинуто! Виконайте хід або завершіть його.");
             return;
@@ -29,9 +28,6 @@ public class Dice : MonoBehaviour
         }
         gameState.diceRolled = true;
     }
-    public void ResetDice()
-    {
-        diceValue = -1;
-    }
+    public void ResetDice() => diceValue = -1;
 }
 

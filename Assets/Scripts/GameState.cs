@@ -2,17 +2,18 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class GameState : MonoBehaviour
 {
     public int currentPlayer;
-    public int playerIndex;
-    public Dictionary<int, List<int>> playerPositions;
-    public Dictionary<int, List<int>> stepCounters;
+    [FormerlySerializedAs("playerIndex")] public int playersIndex;
+    public Dictionary<int, List<int>> PlayerPositions;
+    public Dictionary<int, List<int>> StepCounters;
     public int diceValue;
     public bool diceRolled;
     public Dice dice;
-    public GameObject endGamePanel; // Панель для завершення гри
+    public GameObject endGamePanel;
     public TMP_Text endText;
 
 
@@ -21,12 +22,12 @@ public class GameState : MonoBehaviour
         currentPlayer = 0;
         diceValue = 0;
         diceRolled = false;
-        playerPositions = new Dictionary<int, List<int>>();
-        stepCounters = new Dictionary<int, List<int>>();
+        PlayerPositions = new Dictionary<int, List<int>>();
+        StepCounters = new Dictionary<int, List<int>>();
         for (int i = 0; i < 4; i++)
         {
-            playerPositions[i] = new List<int> { -1, -1, -1, -1 }; // -1 означає, що фігура ще не на полі
-            stepCounters[i] = new List<int> { 0, 0, 0, 0 };
+            PlayerPositions[i] = new List<int> { -1, -1, -1, -1 };
+            StepCounters[i] = new List<int> { 0, 0, 0, 0 };
         }
         GameObject shadow = GameObject.Find("UI/Canvas/Shadow");
         shadow.SetActive(true);
@@ -35,7 +36,7 @@ public class GameState : MonoBehaviour
     public void SetPlayerIndex(int index)
     {
         currentPlayer = index;
-        playerIndex = index;
+        playersIndex = index;
         Debug.Log($"Гравець обрав колір: {index}");
     }
 
@@ -44,7 +45,7 @@ public class GameState : MonoBehaviour
         currentPlayer = (currentPlayer + 1) % 4;
         diceRolled = false;
 
-        if (IsAiPlayer(currentPlayer)) // Якщо це ШІ
+        if (IsAiPlayer(currentPlayer))
         {
             Debug.Log($"Хід ШІ: гравець {currentPlayer}");
             MakeAiMove();
@@ -58,14 +59,14 @@ public class GameState : MonoBehaviour
 
     private bool IsAiPlayer(int playerInd)
     {
-        return (playerInd != playerIndex);
+        return (playerInd != playersIndex);
     }
     
     public void UpdatePlayerPosition(int playerIndex, int pawnIndex, int newPosition)
     {
-        stepCounters[playerIndex][pawnIndex] += diceValue;
-        playerPositions[playerIndex][pawnIndex] = newPosition;
-        Debug.Log($"Кількість поточних кроків гравця {playerIndex}: {stepCounters[playerIndex][pawnIndex]}");
+        StepCounters[playerIndex][pawnIndex] += diceValue;
+        PlayerPositions[playerIndex][pawnIndex] = newPosition;
+        Debug.Log($"Кількість поточних кроків гравця {playerIndex}: {StepCounters[playerIndex][pawnIndex]}");
     }
 
     // ----------------------- Логіка ходів фішок ---------------------------//
@@ -80,7 +81,6 @@ public class GameState : MonoBehaviour
         GameObject cell = GameObject.Find($"Board/Path/Cell {cellIndex + 10}");
         if (cell == null)
         {
-            //Debug.LogError($"Клітинка Board/Path/Cell {cellIndex} не знайдена! Перевірте сцену.");
             return Vector3.zero;
         }
 
@@ -95,15 +95,15 @@ public class GameState : MonoBehaviour
 
     public void ResetPawn(int playerIndex, int pawnIndex)
     {
-        playerPositions[playerIndex][pawnIndex] = -1;
+        PlayerPositions[playerIndex][pawnIndex] = -1;
         GameObject pawn = FindPawnObject(playerIndex, pawnIndex);
         if (pawn != null)
         {
             Pawn pawnScript = pawn.GetComponent<Pawn>();
             pawn.transform.position = pawnScript.startPosition;
             pawnScript.currentCellIndex = -1;
-            stepCounters[playerIndex][pawnIndex] = 0;
-            Debug.Log($"Фішка {pawnIndex} гравця {playerIndex} повернута на старт: {pawnScript.startPosition}");
+            StepCounters[playerIndex][pawnIndex] = 0;
+            Debug.Log($"Фішка {pawnIndex} гравця {playerIndex} повернута на старт.");
         }
     }
 
@@ -111,21 +111,9 @@ public class GameState : MonoBehaviour
     {
         return GameObject.Find($"Pawn_{playerIndex}_{pawnIndex}");
     }
-
-    public int GetPawnIndex(int playerIndex, int cellIndex)
-    {
-        for (int i = 0; i < playerPositions[playerIndex].Count; i++)
-        {
-            if (playerPositions[playerIndex][i] == cellIndex)
-            {
-                return i;
-            }
-        }
-        return -1;
-    }
-
+    
     //------------------ Логіка ходу ШІ ----------------------
-    public void MakeAiMove()
+    private void MakeAiMove()
     {
         StartCoroutine(PerformAiMoves());
     }
@@ -135,98 +123,107 @@ public class GameState : MonoBehaviour
         yield return new WaitForSeconds(0.5f);
         dice.RollDice();
 
-        if (diceValue == 6)
+        int bestMoveIndex = MinimaxDecision(currentPlayer);
+        if (bestMoveIndex != -1)
         {
-            bool moved = TryMoveOutOfStart(currentPlayer);
-            yield return new WaitForSeconds(0.5f); // Затримка перед наступною дією
-            if (!moved)
-            {
-                yield return MoveBestPawnWithDelay(currentPlayer);
-            }
-        }
-        else
-        {
-            yield return MoveBestPawnWithDelay(currentPlayer);
+            MovePawn(currentPlayer, bestMoveIndex);
         }
 
         dice.ResetDice();
         NextPlayer();
     }
 
-    private bool TryMoveOutOfStart(int playerIndex)
+    private int MinimaxDecision(int playerIndex)
     {
-        for (int i = 0; i < playerPositions[playerIndex].Count; i++)
+        int bestPawnIndex = -1;
+        int bestScore = int.MinValue;
+
+        for (int pawnIndex = 0; pawnIndex < PlayerPositions[playerIndex].Count; pawnIndex++)
         {
-            if (playerPositions[playerIndex][i] == -1)
+            int currentPosition = PlayerPositions[playerIndex][pawnIndex];
+
+            if (currentPosition == -1 && diceValue == 6)
             {
-                int startCell = GetStartingCell(playerIndex);
-                playerPositions[playerIndex][i] = startCell;
-                GameObject pawn = FindPawnObject(playerIndex, i);
-                if (pawn != null)
+                return pawnIndex;
+            }
+
+            if (currentPosition != -1)
+            {
+                int newPosition = CalculateOverflowPosition(currentPosition);
+                if (newPosition >= GetTotalCells()) continue;
+
+                int score = EvaluateMove(playerIndex, newPosition);
+                if (score > bestScore)
                 {
-                    stepCounters[playerIndex][i] = 0;
-                    pawn.transform.position = GetCellPosition(startCell);
-                    Pawn pawnScript = pawn.GetComponent<Pawn>();
-                    pawnScript.Anim();
+                    bestScore = score;
+                    bestPawnIndex = pawnIndex;
                 }
-                Debug.Log($"ШІ {playerIndex} вивів фішку {i} зі старту.");
-                return true;
             }
         }
-        return false;
+
+        return bestPawnIndex;
     }
 
-    private IEnumerator MoveBestPawnWithDelay(int playerIndex)
+    private void MovePawn(int playerIndex, int pawnIndex)
     {
-        int bestMove = -1;
-        int bestScore = int.MinValue;
-        int bestPawnIndex = -1;
+        int currentPosition = PlayerPositions[playerIndex][pawnIndex];
 
-        for (int i = 0; i < playerPositions[playerIndex].Count; i++)
+        if (currentPosition == -1)
         {
-            int currentPosition = playerPositions[playerIndex][i];
-            if (currentPosition == -1) continue; // Пропускаємо фішки, які ще на старті
-
-            currentPosition = CalculateOverflowPosition(currentPosition);
-            HandleCapture(playerIndex, currentPosition);
-
-            if (currentPosition >= GetTotalCells()) continue; // Пропускаємо неможливі ходи
-
-            // Розрахунок оцінки для цього ходу
-            int score = EvaluateMove(playerIndex, i, currentPosition);
-            if (score > bestScore)
-            {
-                bestScore = score;
-                bestMove = currentPosition;
-                bestPawnIndex = i;
-            }
-        }
-
-        if (bestPawnIndex != -1)
-        {
-            playerPositions[playerIndex][bestPawnIndex] = bestMove;
-            stepCounters[playerIndex][bestPawnIndex] += diceValue;
-            GameObject pawn = FindPawnObject(playerIndex, bestPawnIndex);
-
-            if (stepCounters[playerIndex][bestPawnIndex] >= 40)
-            {
-                Debug.Log($"Фішка {bestPawnIndex} гравця {playerIndex} завершила коло та перходить у HomeRow");
-                MoveToHomeRow(playerIndex, bestPawnIndex);
-                yield break; // Завершуємо виконання
-            }
-
+            int startCell = GetStartingCell(playerIndex);
+            PlayerPositions[playerIndex][pawnIndex] = startCell;
+            GameObject pawn = FindPawnObject(playerIndex, pawnIndex);
             if (pawn != null)
             {
-                pawn.transform.position = GetCellPosition(bestMove);
+                StepCounters[playerIndex][pawnIndex] = 0;
+                pawn.transform.position = GetCellPosition(startCell);
+                Pawn pawnScript = pawn.GetComponent<Pawn>();
+                pawnScript.Anim();
+                HandleCapture(playerIndex, startCell);
+            }
+        }
+        else
+        {
+            int newPosition = CalculateOverflowPosition(currentPosition);
+            HandleCapture(playerIndex, newPosition);
+            PlayerPositions[playerIndex][pawnIndex] = newPosition;
+            StepCounters[playerIndex][pawnIndex] += diceValue;
+
+            if (StepCounters[playerIndex][pawnIndex] >= 40)
+            {
+                MoveToHomeRow(playerIndex, pawnIndex);
+                return;
+            }
+
+            GameObject pawn = FindPawnObject(playerIndex, pawnIndex);
+            if (pawn != null)
+            {
+                pawn.transform.position = GetCellPosition(newPosition);
                 Pawn pawnScript = pawn.GetComponent<Pawn>();
                 pawnScript.Anim();
             }
-
-            Debug.Log($"ШІ {playerIndex} перемістив фішку {bestPawnIndex} на позицію {bestMove}.");
-
-            yield return new WaitForSeconds(0.5f); // Затримка між рухами
         }
     }
+
+    private int EvaluateMove(int playerIndex, int newPosition)
+    {
+        int score = 0;
+
+        if (newPosition >= GetTotalCells() - 6) score += 10;
+
+        foreach (var opponentIndex in PlayerPositions.Keys)
+        {
+            if (opponentIndex == playerIndex) continue;
+            foreach (var opponentPosition in PlayerPositions[opponentIndex])
+            {
+                if (newPosition == opponentPosition) score += 20; 
+                if (Mathf.Abs(newPosition - opponentPosition) <= 6) score -= 5;
+            }
+        }
+
+        return score;
+    }
+
     public int CalculateOverflowPosition(int currentPosition)
     {
         int newPosition;
@@ -240,18 +237,19 @@ public class GameState : MonoBehaviour
         {
             newPosition = currentPosition + diceValue;
         }
-        
+
         return newPosition;
     }
+
     private void HandleCapture(int playerIndex, int cellIndex)
     {
         for (int otherPlayer = 0; otherPlayer < 4; otherPlayer++)
         {
             if (otherPlayer == playerIndex) continue;
 
-            for (int otherPawnIndex = 0; otherPawnIndex < playerPositions[otherPlayer].Count; otherPawnIndex++)
+            for (int otherPawnIndex = 0; otherPawnIndex < PlayerPositions[otherPlayer].Count; otherPawnIndex++)
             {
-                if (playerPositions[otherPlayer][otherPawnIndex] == cellIndex)
+                if (PlayerPositions[otherPlayer][otherPawnIndex] == cellIndex)
                 {
                     ResetPawn(otherPlayer, otherPawnIndex);
                     Debug.Log($"Фішку гравця {otherPlayer} захоплено гравцем {playerIndex} на клітинці {cellIndex+10}!");
@@ -260,36 +258,18 @@ public class GameState : MonoBehaviour
         }
     }
 
-    private int EvaluateMove(int playerIndex, int pawnIndex, int newPosition)
-    {
-        int score = 0;
-        
-        if (newPosition >= GetTotalCells() - 6) score += 10;
-
-        foreach (var opponentIndex in playerPositions.Keys)
-        {
-            if (opponentIndex == playerIndex) continue;
-            foreach (var opponentPosition in playerPositions[opponentIndex])
-            {
-                if (Mathf.Abs(newPosition - opponentPosition) <= 6) score -= 5;
-            }
-        }
-
-        return score;
-    }
-
     public void MoveToHomeRow(int playerIndex, int pawnIndex)
     {
         string homeObjectName = $"HomeRow_{GetPlayerColor(playerIndex)}/Coin_{pawnIndex + 1}";
         GameObject homePositionObject = GameObject.Find(homeObjectName);
-    
+
         if (homePositionObject != null)
         {
             GameObject pawn = FindPawnObject(playerIndex, pawnIndex);
             if (pawn != null)
             {
                 pawn.transform.position = homePositionObject.transform.position;
-                playerPositions[playerIndex][pawnIndex] = -10;
+                PlayerPositions[playerIndex][pawnIndex] = -10;
                 Debug.Log($"Фішка {pawnIndex} гравця {playerIndex} переміщена у домашній ряд на позицію {pawnIndex + 1}.");
                 Pawn pawnScript = pawn.GetComponent<Pawn>();
                 pawnScript.Anim();
@@ -311,7 +291,7 @@ public class GameState : MonoBehaviour
     {
         int homeCount = 0;
 
-        foreach (int position in playerPositions[playerIndex])
+        foreach (int position in PlayerPositions[playerIndex])
         {
             if (position < -1)
             {
@@ -346,10 +326,7 @@ public class GameState : MonoBehaviour
         Time.timeScale = 0;
     }
 
-    public void TestWin()
-    {
-        EndGame(1);
-    }
+    public void TestWin() => EndGame(1);
 
     private string GetPlayerColor(int colorIndex)
     {
@@ -362,5 +339,4 @@ public class GameState : MonoBehaviour
             default: return "Unknown";
         }
     }
-
 }
