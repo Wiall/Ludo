@@ -16,7 +16,6 @@ public class GameState : MonoBehaviour
     public GameObject endGamePanel;
     public TMP_Text endText;
 
-
     void Start()
     {
         currentPlayer = 0;
@@ -176,10 +175,9 @@ public class GameState : MonoBehaviour
             if (pawn != null)
             {
                 StepCounters[playerIndex][pawnIndex] = 0;
-                pawn.transform.position = GetCellPosition(startCell);
-                Pawn pawnScript = pawn.GetComponent<Pawn>();
-                pawnScript.Anim();
-                HandleCapture(playerIndex, startCell);
+                AnimatePawnMove(pawn, GetCellPosition(startCell), () => {
+                    HandleCapture(playerIndex, startCell);
+                });
             }
         }
         else
@@ -198,11 +196,14 @@ public class GameState : MonoBehaviour
             GameObject pawn = FindPawnObject(playerIndex, pawnIndex);
             if (pawn != null)
             {
-                pawn.transform.position = GetCellPosition(newPosition);
-                Pawn pawnScript = pawn.GetComponent<Pawn>();
-                pawnScript.Anim();
+                AnimatePawnMove(pawn, GetCellPosition(newPosition), () => {
+                });
             }
         }
+    }
+    private void AnimatePawnMove(GameObject pawn, Vector3 targetPosition, System.Action onComplete)
+    {
+        LeanTween.move(pawn, targetPosition, 0.5f).setEaseInOutQuad().setOnComplete(() => onComplete?.Invoke());
     }
 
     private int EvaluateMove(int playerIndex, int newPosition)

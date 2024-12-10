@@ -34,21 +34,25 @@ public class Pawn : MonoBehaviour
             if (diceValue == 6)
             {
                 currentCellIndex = gameState.GetStartingCell(playerIndex);
-                transform.position = gameState.GetCellPosition(currentCellIndex);
-                gameState.UpdatePlayerPosition(playerIndex, pawnIndex, currentCellIndex);
-                gameState.StepCounters[playerIndex][pawnIndex] = 0;
+                AnimateMove(currentCellIndex, () =>
+                {
+                    gameState.UpdatePlayerPosition(playerIndex, pawnIndex, currentCellIndex);
+                    gameState.StepCounters[playerIndex][pawnIndex] = 0;
+                });
             }
         }
         else
         {
             currentCellIndex = gameState.CalculateOverflowPosition(currentCellIndex);
-            transform.position = gameState.GetCellPosition(currentCellIndex);
-            gameState.UpdatePlayerPosition(playerIndex, pawnIndex, currentCellIndex);
-            if (gameState.StepCounters[playerIndex][pawnIndex] >= 40)
+            AnimateMove(currentCellIndex, () =>
             {
-                Debug.Log($"Фішка {pawnIndex} гравця {playerIndex} завершила коло та перходить у HomeRow");
-                gameState.MoveToHomeRow(playerIndex, pawnIndex);
-            }
+                gameState.UpdatePlayerPosition(playerIndex, pawnIndex, currentCellIndex);
+                if (gameState.StepCounters[playerIndex][pawnIndex] >= 40)
+                {
+                    Debug.Log($"Фішка {pawnIndex} гравця {playerIndex} завершила коло та переходить у HomeRow");
+                    gameState.MoveToHomeRow(playerIndex, pawnIndex);
+                }
+            });
         }
     }
     
@@ -67,7 +71,11 @@ public class Pawn : MonoBehaviour
             }
         }
     }
-
+    private void AnimateMove(int targetCellIndex, System.Action onComplete)
+    {
+        Vector3 targetPosition = gameState.GetCellPosition(targetCellIndex);
+        LeanTween.move(gameObject, targetPosition, 0.5f).setEaseInOutQuad().setOnComplete(() => onComplete?.Invoke());
+    }
     public void Anim() => OnSelect();
     public void OnSelect()
     {

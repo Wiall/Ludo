@@ -30,4 +30,3 @@ public class Dice : MonoBehaviour
     }
     public void ResetDice() => diceValue = -1;
 }
-
